@@ -122,15 +122,31 @@ prompt instruction.
 
 ## Setup
 
-1. Install [Node.js](https://nodejs.org/) 18 or later (or via
+1. Clone the repo and move into it:
+   ```
+   git clone https://github.com/gergerer/crash-doctor.git
+   cd crash-doctor
+   ```
+2. Install [Node.js](https://nodejs.org/) 18 or later (or via
    [nvm-windows](https://github.com/coreybutler/nvm-windows)).
-2. `npm install`
-3. `cp .env.example .env` and add your key from
-   [console.anthropic.com](https://console.anthropic.com/settings/keys).
-4. `npm run dev` (or `npm run build && npm start`)
+3. `npm install`
+4. Copy `.env.example` to `.env` and add your key from
+   [console.anthropic.com](https://console.anthropic.com/settings/keys):
+   ```
+   cp .env.example .env        # macOS/Linux/Git Bash
+   copy .env.example .env      # Windows cmd
+   Copy-Item .env.example .env # PowerShell
+   ```
+5. `npm run dev` (or `npm run build && npm start`)
 
 Run the test suite with `npm test` — it needs no API key and no Windows
 machine; the executor tests mock `child_process` directly.
+
+> **Windows PowerShell users:** if `npm run dev` fails with
+> `running scripts is disabled on this system`, that's PowerShell's default
+> execution policy blocking npm's `.ps1` wrapper, not a problem with the
+> project. Either run `npm.cmd run dev` instead, or allow local scripts once
+> with `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`.
 
 ## Usage
 
