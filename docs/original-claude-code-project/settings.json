@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-WinEvent*)",
+      "Bash(Get-ChildItem C:\\Windows\\Minidump*)"
+    ],
+    "ask": [
+      "Bash(*)"
+    ]
+  }
+}
