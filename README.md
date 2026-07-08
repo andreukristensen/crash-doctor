@@ -10,34 +10,55 @@ unexpected reboots). It runs a disciplined, evidence-driven diagnostic loop —
 handing you a generic troubleshooting checklist, and it maintains a live
 evidence ledger until a root cause is confirmed.
 
-```
-> My PC has been crashing randomly, black screen, a few times over the last two weeks.
+![Example crash-doctor session: describing a symptom, auto-running capture commands, decoding the result, and updating the evidence ledger](docs/assets/demo.gif)
 
-CAPTURE: let's see what Windows already recorded.
+_A representative session assembled from real runs against the live API, rendered as a terminal recording._
+
+<details>
+<summary>Same session as text</summary>
+
+```
+$ npm run dev
+
+Starting a new crash-triage session. Describe what's happening
+(symptom, frequency, load vs idle, timestamps).
+
+> My PC has been crashing randomly, black screen, a few times
+  over the last two weeks.
+
   -> running capture command: recent_bugcheck_events
   -> running capture command: stopcode_wer_events
-
-DECODE: two crashes in the last week, both bugcheck 0x124 (WHEA_UNCORRECTABLE_ERROR).
-That's a hardware-reported error - checking the WHEA log next.
   -> running capture command: whea_hardware_events
 
-HYPOTHESISE:
-  1. Memory controller / CPU instability - 0x124 is hardware-reported, and WHEA
-     events are present. (rank: leading)
-  2. Physical RAM fault - consistent with 0x124, cheaper to rule out first.
-  3. Memory overclock (XMP) - free, 2-minute test, should be eliminated before
-     anything more invasive.
+CAPTURE: all four queries came back empty - no bugcheck events, no WHEA
+hardware errors, no minidump folder, no WER stopcode entries.
 
-TEST: disable XMP in BIOS and watch for recurrence over 7 days (your crashes
-have been ~2x/week, so a clean week is meaningful signal).
+That's meaningful: Windows has no record of a kernel bugcheck at all. A
+black-screen crash with zero OS trace points toward a hard hang or
+power-loss event, not a handled driver exception.
+
+HYPOTHESISE:
+  1. Hard hang / power-loss (PSU, GPU power delivery, total freeze)
+  2. Crash-dump logging disabled or being cleared
+  3. WHEA-reported hardware error not yet triggered
+
+TEST: does the PC reboot on its own, or just go black and hang until a
+manual hard reset? That single answer splits hypothesis 1 from the rest.
 
 --- Evidence ledger ---
-| Suspect                | Status | Evidence                          | Test used |
-|-------------------------|--------|------------------------------------|-----------|
-| Memory overclock (XMP)  | Open   | WHEA 0x124 present, XMP enabled    | -         |
-| Physical RAM fault      | Open   | Consistent with 0x124              | -         |
+| Suspect                        | Status    | Evidence                     |
+|---------------------------------|-----------|-------------------------------|
+| OS-logged bugcheck              | Ruled out | zero results across captures |
+| Hard hang / power-loss          | Open      | no OS trace despite crashes   |
+| Logging disabled (config issue) | Open      | no Minidump folder present    |
 ------------------------
+
+> /exit
+
+Session saved to .crash-doctor/session.json. Run with --resume to continue.
 ```
+
+</details>
 
 ## Origin story
 
