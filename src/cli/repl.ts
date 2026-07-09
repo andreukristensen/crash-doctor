@@ -2,6 +2,7 @@ import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import type Anthropic from "@anthropic-ai/sdk";
 import { runTurn } from "../agent/loop.js";
+import { CrashDoctorApiError } from "../agent/retry.js";
 import { executeDemoCaptureCommand } from "../commands/demoCaptureExecutor.js";
 import { Ledger } from "../ledger/ledger.js";
 import {
@@ -65,25 +66,39 @@ export async function startRepl(client: Anthropic, options: ReplOptions): Promis
 
       const history = [...session.transcript, { role: "user" as const, content: trimmed }];
 
-      const updatedHistory = await runTurn(
-        client,
-        history,
-        ledger,
-        {
-          model: options.model,
-          captureFn: options.demo ? executeDemoCaptureCommand : undefined,
-        },
-        {
-          onAssistantText: renderAssistantText,
-          onCaptureCommand: renderCaptureCommandStart,
-          onLedgerUpdate: (l) => renderLedgerUpdate(l.toMarkdownTable()),
-        },
-      );
+      try {
+        const updatedHistory = await runTurn(
+          client,
+          history,
+          ledger,
+          {
+            model: options.model,
+            captureFn: options.demo ? executeDemoCaptureCommand : undefined,
+          },
+          {
+            onAssistantText: renderAssistantText,
+            onCaptureCommand: renderCaptureCommandStart,
+            onLedgerUpdate: (l) => renderLedgerUpdate(l.toMarkdownTable()),
+            onApiRetry: (attempt, maxAttempts, delayMs, error) => {
+              const reason = error instanceof Error ? error.message : String(error);
+              console.log(
+                `\n(${reason} - retrying in ${Math.round(delayMs / 1000)}s, ` +
+                  `attempt ${attempt}/${maxAttempts - 1})`,
+              );
+            },
+          },
+        );
 
-      session.transcript = updatedHistory;
-      session.ledger = ledger.getRows();
-      session.updatedAt = new Date().toISOString();
-      if (!options.demo) await saveSession(filePath, session);
+        session.transcript = updatedHistory;
+        session.ledger = ledger.getRows();
+        session.updatedAt = new Date().toISOString();
+        if (!options.demo) await saveSession(filePath, session);
+      } catch (error) {
+        if (!(error instanceof CrashDoctorApiError)) throw error;
+        // The user's message never made it into transcript/ledger state, so
+        // nothing is inconsistent to roll back - just report and re-prompt.
+        console.error(`\n${error.message}\n`);
+      }
     }
   } finally {
     rl.close();

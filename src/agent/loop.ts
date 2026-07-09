@@ -6,6 +6,7 @@ import type { LedgerStatus } from "../ledger/types.js";
 import { buildSystemPrompt } from "../prompt/systemPrompt.js";
 import { runCaptureCommandTool } from "../tools/captureTool.js";
 import { updateLedgerTool } from "../tools/ledgerTool.js";
+import { withRetry } from "./retry.js";
 
 export interface RunTurnOptions {
   model: string;
@@ -18,6 +19,8 @@ export interface TurnCallbacks {
   onAssistantText: (text: string) => void;
   onCaptureCommand: (commandId: string) => void;
   onLedgerUpdate: (ledger: Ledger) => void;
+  /** Called before each backoff sleep on a transient API failure (rate limit, 5xx, connection error). */
+  onApiRetry?: (attempt: number, maxAttempts: number, delayMs: number, error: unknown) => void;
 }
 
 interface UpdateLedgerInput {
@@ -44,13 +47,17 @@ export async function runTurn(
   const captureFn = options.captureFn ?? executeCaptureCommand;
 
   while (true) {
-    const response = await client.messages.create({
-      model: options.model,
-      max_tokens: options.maxTokens ?? 4096,
-      system: buildSystemPrompt(ledger),
-      tools: [runCaptureCommandTool, updateLedgerTool],
-      messages,
-    });
+    const response = await withRetry(
+      () =>
+        client.messages.create({
+          model: options.model,
+          max_tokens: options.maxTokens ?? 4096,
+          system: buildSystemPrompt(ledger),
+          tools: [runCaptureCommandTool, updateLedgerTool],
+          messages,
+        }),
+      { onRetry: callbacks.onApiRetry },
+    );
 
     messages = [...messages, { role: "assistant", content: response.content }];
 
