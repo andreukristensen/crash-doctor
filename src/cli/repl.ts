@@ -2,6 +2,7 @@ import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import type Anthropic from "@anthropic-ai/sdk";
 import { runTurn } from "../agent/loop.js";
+import { executeDemoCaptureCommand } from "../commands/demoCaptureExecutor.js";
 import { Ledger } from "../ledger/ledger.js";
 import {
   createSession,
@@ -15,14 +16,22 @@ import { renderAssistantText, renderCaptureCommandStart, renderLedgerUpdate } fr
 export interface ReplOptions {
   model: string;
   resume: boolean;
+  /** Use canned example event-log data instead of the real machine's logs, and don't persist the session. */
+  demo: boolean;
 }
 
 export async function startRepl(client: Anthropic, options: ReplOptions): Promise<void> {
   const filePath = sessionFilePath();
-  const loaded = options.resume ? await loadSession(filePath) : null;
+  const loaded = options.demo ? null : options.resume ? await loadSession(filePath) : null;
   const session: SessionFile = loaded ?? createSession();
 
-  if (loaded) {
+  if (options.demo) {
+    console.log(
+      "Demo mode: CAPTURE commands return a canned example scenario instead of " +
+        "this machine's real logs, so you can try the full loop without a crash " +
+        "history of your own. Nothing is written to disk in this mode. Type /exit to quit.",
+    );
+  } else if (loaded) {
     console.log(`Resumed session from ${filePath} (started ${loaded.createdAt}).`);
   } else {
     console.log(
@@ -60,7 +69,10 @@ export async function startRepl(client: Anthropic, options: ReplOptions): Promis
         client,
         history,
         ledger,
-        { model: options.model },
+        {
+          model: options.model,
+          captureFn: options.demo ? executeDemoCaptureCommand : undefined,
+        },
         {
           onAssistantText: renderAssistantText,
           onCaptureCommand: renderCaptureCommandStart,
@@ -71,11 +83,13 @@ export async function startRepl(client: Anthropic, options: ReplOptions): Promis
       session.transcript = updatedHistory;
       session.ledger = ledger.getRows();
       session.updatedAt = new Date().toISOString();
-      await saveSession(filePath, session);
+      if (!options.demo) await saveSession(filePath, session);
     }
   } finally {
     rl.close();
   }
 
-  console.log(`\nSession saved to ${filePath}. Run with --resume to continue.`);
+  if (!options.demo) {
+    console.log(`\nSession saved to ${filePath}. Run with --resume to continue.`);
+  }
 }

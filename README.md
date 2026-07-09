@@ -160,12 +160,22 @@ npx tsx src/index.ts [options]
 Options:
   -r, --resume         resume the last session in .crash-doctor/session.json
   -m, --model <model>  Claude model to use (default: claude-sonnet-5)
+  -d, --demo           use a canned example scenario instead of this
+                       machine's real logs
 ```
 
 Describe your symptom to start. Type `/exit` to quit; your ledger and
 transcript are saved after every turn, so `--resume` picks up where you left
 off — useful since crash triage often spans a reboot (BIOS changes,
 MemTest86) or a multi-day observation window.
+
+**Trying it without a crash history:** the CAPTURE commands query your
+machine's real event log, so on a healthy PC they'll mostly come back empty
+(which the tool handles correctly — see the demo GIF above). To see the full
+loop work end-to-end regardless of your machine's actual history, run
+`npm run dev -- --demo`: it swaps in a canned example scenario (bugchecks
+with varied stop codes across different modules, plus WHEA events) instead
+of touching PowerShell at all, and writes nothing to disk.
 
 ## Design decisions
 

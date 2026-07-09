@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam, ToolResultBlockParam } from "@anthropic-ai/sdk/resources/messages";
-import { executeCaptureCommand } from "../commands/captureExecutor.js";
+import { executeCaptureCommand, type CaptureResult } from "../commands/captureExecutor.js";
 import type { Ledger } from "../ledger/ledger.js";
 import type { LedgerStatus } from "../ledger/types.js";
 import { buildSystemPrompt } from "../prompt/systemPrompt.js";
@@ -10,6 +10,8 @@ import { updateLedgerTool } from "../tools/ledgerTool.js";
 export interface RunTurnOptions {
   model: string;
   maxTokens?: number;
+  /** Defaults to the real whitelist-only PowerShell executor; --demo mode injects a canned-data version. */
+  captureFn?: (commandId: string) => Promise<CaptureResult>;
 }
 
 export interface TurnCallbacks {
@@ -39,6 +41,7 @@ export async function runTurn(
   callbacks: TurnCallbacks,
 ): Promise<MessageParam[]> {
   let messages = history;
+  const captureFn = options.captureFn ?? executeCaptureCommand;
 
   while (true) {
     const response = await client.messages.create({
@@ -67,7 +70,7 @@ export async function runTurn(
       if (block.name === "run_capture_command") {
         const input = block.input as { command_id: string };
         callbacks.onCaptureCommand(input.command_id);
-        const result = await executeCaptureCommand(input.command_id);
+        const result = await captureFn(input.command_id);
         toolResults.push({
           type: "tool_result",
           tool_use_id: block.id,
