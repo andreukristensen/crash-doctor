@@ -129,6 +129,16 @@ prompt instruction.
    ```
 2. Install [Node.js](https://nodejs.org/) 18 or later (or via
    [nvm-windows](https://github.com/coreybutler/nvm-windows)).
+
+   > **Windows PowerShell users:** every `npm` command below (`npm install`,
+   > `npm run dev`, `npm test`, ...) can fail with
+   > `running scripts is disabled on this system`. That's PowerShell's
+   > default execution policy blocking npm's `.ps1` wrapper, not a problem
+   > with this project. Either prefix commands with `npm.cmd` instead of
+   > `npm` (e.g. `npm.cmd install`), or fix it once for your account with:
+   > ```
+   > Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+   > ```
 3. `npm install`
 4. Copy `.env.example` to `.env` and add your key from
    [console.anthropic.com](https://console.anthropic.com/settings/keys):
@@ -141,12 +151,6 @@ prompt instruction.
 
 Run the test suite with `npm test` — it needs no API key and no Windows
 machine; the executor tests mock `child_process` directly.
-
-> **Windows PowerShell users:** if `npm run dev` fails with
-> `running scripts is disabled on this system`, that's PowerShell's default
-> execution policy blocking npm's `.ps1` wrapper, not a problem with the
-> project. Either run `npm.cmd run dev` instead, or allow local scripts once
-> with `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`.
 
 ## Usage
 
